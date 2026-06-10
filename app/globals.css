@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #0b1220;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+/* portrait warning overlay: hidden in landscape */
+.portrait-overlay {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .portrait-overlay {
+    display: flex;
+  }
+}
