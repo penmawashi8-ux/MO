@@ -9,8 +9,8 @@ interface Props {
   hud: HudData | null;
 }
 
-const JOY_SIZE = 136;
-const KNOB_SIZE = 56;
+const JOY_SIZE = 124;
+const KNOB_SIZE = 52;
 
 export default function VirtualPad({ input, hud }: Props) {
   return (
@@ -83,8 +83,14 @@ function Joystick({ input }: { input: InputManager }) {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
-      className="pointer-events-auto absolute bottom-5 left-5 rounded-full border-2 border-white/25 bg-white/10 backdrop-blur-sm"
-      style={{ width: JOY_SIZE, height: JOY_SIZE, touchAction: "none" }}
+      className="pointer-events-auto absolute rounded-full border-2 border-white/25 bg-white/10 backdrop-blur-sm"
+      style={{
+        width: JOY_SIZE,
+        height: JOY_SIZE,
+        touchAction: "none",
+        left: "calc(1rem + env(safe-area-inset-left))",
+        bottom: "calc(1rem + env(safe-area-inset-bottom))",
+      }}
     >
       <div
         className="absolute rounded-full border-2 border-white/40 bg-white/30"
@@ -157,25 +163,33 @@ function Buttons({ input, hud }: { input: InputManager; hud: HudData | null }) {
   const w = hud?.hero?.w;
 
   return (
-    <div className="absolute bottom-4 right-4" style={{ width: 200, height: 180 }}>
+    <div
+      className="absolute"
+      style={{
+        width: 178,
+        height: 150,
+        right: "calc(0.5rem + env(safe-area-inset-right))",
+        bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+      }}
+    >
       {/* B: recall (top-left of cluster) */}
       <div className="absolute left-0 top-0">
         <PadButton label="B" sub="帰還" size={56} onPress={() => press("B")} />
       </div>
       {/* W skill (top-right) */}
-      <div className="absolute right-2 top-0">
-        <PadButton label="W" sub={w?.name} skill={w} size={64} onPress={() => press("W")} />
+      <div className="absolute right-1 top-0">
+        <PadButton label="W" sub={w?.name} skill={w} size={60} onPress={() => press("W")} />
       </div>
       {/* Q skill (left of A) */}
-      <div className="absolute bottom-2 left-2">
-        <PadButton label="Q" sub={q?.name} skill={q} size={64} onPress={() => press("Q")} />
+      <div className="absolute bottom-1 left-0">
+        <PadButton label="Q" sub={q?.name} skill={q} size={60} onPress={() => press("Q")} />
       </div>
       {/* A: attack (big, bottom-right) */}
       <div className="absolute bottom-0 right-0">
         <PadButton
           label="A"
           sub="攻撃"
-          size={76}
+          size={70}
           className="!border-amber-400/60 !bg-amber-500/25"
           onPress={() => press("A")}
         />
