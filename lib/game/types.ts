@@ -7,7 +7,7 @@ export interface Vec {
 export type CharId = "solara" | "thornwall" | "vexis" | "aethon" | "lumis" | "krag";
 export type Role = "Mage" | "Tank" | "Assassin" | "Marksman" | "Support" | "Fighter";
 export type Difficulty = "easy" | "normal" | "hard";
-export type GameMode = "cpu" | "local" | "mixed";
+export type GameMode = "cpu" | "local" | "mixed" | "online";
 
 export type StatusType = "stun" | "root" | "shield" | "poison" | "burn" | "haste" | "might" | "slow";
 
@@ -194,6 +194,20 @@ export interface HudSkill {
   cdMax: number;
   cost: number;
   ready: boolean;
+}
+
+/**
+ * Everything the canvas renderer needs. Implemented structurally by the
+ * Engine (host/offline) and by RemoteView (online guests).
+ */
+export interface RenderView {
+  viewport: { w: number; h: number };
+  camera: { x: number; y: number; scale: number };
+  units: Unit[];
+  projectiles: Projectile[];
+  effects: GroundEffect[];
+  floats: FloatText[];
+  activeHero(): Hero | null;
 }
 
 export interface HudData {

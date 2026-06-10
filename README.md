@@ -1,15 +1,17 @@
-# AETHER CLASH — 3vs3 Browser MOBA
+# AETHER CLASH — 3vs3 Online Browser MOBA
 
-魔法・機械・自然・霊体が交錯するオリジナルブラウザMOBA。スマホ横向き（landscape）対応、バックエンド不要・完全クライアントサイドで動作します。
+魔法・機械・自然・霊体が交錯するオリジナルブラウザMOBA。スマホ横向き（landscape）対応。専用サーバー不要 — オンライン対戦はWebRTC（PeerJS）によるP2P接続で実現しており、Vercelの静的ホスティングだけで動作します。
 
 ## 遊び方
 
 ### ゲームモード
-- **CPU戦** — あなた1人 + 味方CPU2体 vs 敵CPU3体
-- **ローカル対人戦** — 同一端末で6人が交代操作（3vs3全員プレイヤー、20秒ごとに操作交代）
-- **CPU混合対人戦** — プレイヤー2〜5人 + CPU補完
+- **オンライン対戦** — ホストが「ルームを作成」して5文字のルームコードを共有 → 友達がコード入力で参加（最大6人）。空き枠はCPUが補完。ホスト端末がゲームを実行し、ゲストへ15Hzで状態を配信します
+- **CPU戦（1人プレイ）** — あなた1人 + 味方CPU2体 vs 敵CPU3体
 
 CPU難易度: 易しい / 普通 / 難しい
+
+> オンライン対戦はPeerJSの無料パブリックシグナリングサーバーとSTUNを使用します。
+> 厳しいNAT環境（社内ネットワーク等）ではTURNサーバーがないため接続できない場合があります。
 
 ### 操作方法
 
@@ -47,10 +49,11 @@ npm run dev    # http://localhost:3000
 npm run build  # production build
 ```
 
-ヘッドレスのエンジン検証（CPU同士でフル試合をシミュレート）:
+ヘッドレス検証:
 
 ```bash
-npx tsx scripts/simulate.ts
+npx tsx scripts/simulate.ts       # CPU同士でフル試合をシミュレート
+npx tsx scripts/test-net-flow.ts  # コマンド適用・スナップショット往復のテスト
 ```
 
 ## デプロイ（Vercel）
@@ -68,19 +71,31 @@ app/
   page.tsx          # エントリーポイント・画面遷移（タイトル/ゲーム/リザルト）
   layout.tsx        # メタタグ・全画面・横向き設定
 lib/game/
-  engine.ts         # ゲームループ・状態管理・戦闘処理
+  engine.ts         # ゲームループ・状態管理・戦闘処理（ホスト/オフラインで実行）
   characters.ts     # キャラクター定義・スキルロジック
   ai.ts             # CPUステートマシン（Idle/Patrol/Chase/Attack/Retreat）
   map.ts            # マップ・タワー・ミニオン定数
   input.ts          # キーボード・マウス・タッチ入力
-  renderer.ts       # Canvas 2D描画・ミニマップ
+  commands.ts       # プレイヤーコマンド（ローカル/ネットワーク共通）
+  net.ts            # PeerJSによるルーム管理（HostNet / GuestNet）
+  snapshot.ts       # 状態スナップショット直列化 + ゲスト側RemoteView
+  renderer.ts       # Canvas 2D描画・ミニマップ（RenderView抽象に描画）
 components/
-  GameCanvas.tsx    # Canvasマウント・ゲームループ駆動
+  GameCanvas.tsx    # ホスト/オフライン: エンジン駆動 + ゲストへ配信
+  RemoteGameCanvas.tsx # ゲスト: スナップショット描画 + 入力送信
+  OnlineLobby.tsx   # ルーム作成/参加・キャラ選択ロビー
   VirtualPad.tsx    # バーチャルジョイスティック + A/Q/W/Bボタン
   HUD.tsx           # HP/MPバー・スコア・各種オーバーレイ
   TitleScreen.tsx   # モード・難易度・キャラ選択
   ResultScreen.tsx  # 勝敗・KDA・ダメージ統計
 ```
+
+### オンライン対戦のアーキテクチャ
+- **ホスト権威型**: ホスト端末がエンジン（物理・戦闘・AI）を実行
+- ゲストは入力コマンド（移動・攻撃・スキル・帰還）だけを送信
+- ホストは約15Hzで圧縮スナップショット（約2〜3KB）を全ゲストへ配信
+- ゲストは位置を指数平滑補間して描画（RemoteView）
+- ゲスト切断時はそのヒーローをCPUが引き継ぎ
 
 - HTML5 Canvas 2D + requestAnimationFrame（60fps）
 - ピンチズーム/スクロール無効化（`touch-action: none`）
