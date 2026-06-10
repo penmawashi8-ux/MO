@@ -872,7 +872,8 @@ export class Engine {
 
   private updateCamera() {
     const h = this.activeHero();
-    const s = Math.max(this.viewport.h / 900, this.viewport.w / 2400);
+    // closer zoom so characters stay readable on small screens
+    const s = Math.min(1.25, Math.max(0.55, this.viewport.h / 620, this.viewport.w / 1500));
     this.camera.scale = s;
     const target = h ? h.pos : { x: WORLD.w / 2, y: WORLD.h / 2 };
     const halfW = this.viewport.w / 2 / s;
