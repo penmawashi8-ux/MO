@@ -4,18 +4,13 @@
  * Usage: npx tsx scripts/simulate.ts
  */
 import { Engine } from "../lib/game/engine";
-import { InputManager } from "../lib/game/input";
 
-const input = new InputManager();
-const engine = new Engine(
-  {
-    mode: "cpu",
-    difficulty: "hard",
-    humans: [], // all heroes AI-controlled
-    swapInterval: 0,
-  },
-  input,
-);
+const engine = new Engine({
+  mode: "cpu",
+  difficulty: "hard",
+  humans: [], // all heroes AI-controlled
+  swapInterval: 0,
+});
 
 const dt = 1 / 60;
 const maxSeconds = 60 * 12;

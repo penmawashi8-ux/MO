@@ -1,4 +1,5 @@
 import { ALL_CHAR_IDS, CHARACTERS, type CharDef } from "./characters";
+import { CommandBuffer, type NetCommand } from "./commands";
 import { updateAI } from "./ai";
 import {
   BASE_HP, BASE_POS, FOUNTAIN_RADIUS, JUNGLE_DMG, JUNGLE_HP, JUNGLE_POS,
@@ -30,17 +31,21 @@ export class Engine {
   camera = { x: WORLD.w / 2, y: WORLD.h / 2, scale: 1 };
   viewport = { w: 800, h: 450 };
   config: GameConfig;
-  input: import("./input").InputManager;
+  /** which human slot the local camera/HUD follows */
+  cameraSlot: number | null;
 
+  private buffers = new Map<number, CommandBuffer>();
   private nextId = 1;
   private minionTimer = 2.5;
   private activeSlotIdx = 0;
   private swapTimer: number;
 
-  constructor(config: GameConfig, input: import("./input").InputManager) {
+  constructor(config: GameConfig) {
     this.config = config;
-    this.input = input;
     this.swapTimer = config.swapInterval;
+    this.cameraSlot = config.humans[0]?.slot ?? null;
+    // human heroes idle awaiting input rather than falling back to AI
+    for (const h of config.humans) this.ensureBuffer(h.slot);
     this.buildWorld();
     const first = this.activeHero();
     if (first && first.humanLabel && config.humans.length > 1) {
@@ -139,11 +144,44 @@ export class Engine {
     return CHARACTERS[h.charId];
   }
 
-  /** The hero currently controlled by the active human slot */
+  /** The hero followed by the local camera/HUD */
   activeHero(): Hero | null {
-    if (this.config.humans.length === 0) return null;
-    const slot = this.config.humans[this.activeSlotIdx].slot;
+    if (this.cameraSlot === null) return null;
+    return this.heroes().find((h) => h.humanSlot === this.cameraSlot) ?? null;
+  }
+
+  heroBySlot(slot: number): Hero | null {
     return this.heroes().find((h) => h.humanSlot === slot) ?? null;
+  }
+
+  ensureBuffer(slot: number): CommandBuffer {
+    let buf = this.buffers.get(slot);
+    if (!buf) {
+      buf = new CommandBuffer();
+      this.buffers.set(slot, buf);
+    }
+    return buf;
+  }
+
+  pushCommand(slot: number, c: NetCommand) {
+    this.ensureBuffer(slot).push(c);
+  }
+
+  /** Hand a (disconnected) player's hero over to the AI */
+  releaseSlot(slot: number) {
+    this.buffers.delete(slot);
+    const h = this.heroBySlot(slot);
+    if (h) {
+      this.banner = { text: `${h.humanLabel ?? "プレイヤー"} が切断 — CPUが引き継ぎます`, life: 3 };
+    }
+  }
+
+  /** In hot-seat modes only the active slot receives input; online all do */
+  private slotActive(slot: number): boolean {
+    if (this.config.swapInterval > 0 && this.config.humans.length > 1) {
+      return this.config.humans[this.activeSlotIdx]?.slot === slot;
+    }
+    return true;
   }
 
   isEnemy(a: Unit, b: Unit): boolean {
@@ -440,7 +478,6 @@ export class Engine {
     );
 
     this.updateCamera();
-    this.input.endFrame();
   }
 
   private updateSwap(dt: number) {
@@ -449,6 +486,7 @@ export class Engine {
     if (this.swapTimer <= 0) {
       this.swapTimer = this.config.swapInterval;
       this.activeSlotIdx = (this.activeSlotIdx + 1) % this.config.humans.length;
+      this.cameraSlot = this.config.humans[this.activeSlotIdx].slot;
       const h = this.activeHero();
       if (h) {
         h.moveTarget = null;
@@ -511,8 +549,11 @@ export class Engine {
     h.qCd = Math.max(0, h.qCd - dt);
     h.wCd = Math.max(0, h.wCd - dt);
 
-    const isActiveHuman = h.controller === "human" && this.activeHero()?.id === h.id;
-    if (isActiveHuman) this.handleHumanControl(h, dt);
+    const buf =
+      h.humanSlot !== null && this.buffers.has(h.humanSlot) && this.slotActive(h.humanSlot)
+        ? this.ensureBuffer(h.humanSlot)
+        : null;
+    if (buf) this.handleHumanControl(h, buf);
     else updateAI(this, h, dt);
 
     // recall channel
@@ -526,7 +567,7 @@ export class Engine {
     }
 
     this.handleAutoAttack(h);
-    this.applyMovement(h, dt, isActiveHuman);
+    this.applyMovement(h, dt, buf);
   }
 
   private respawnHero(h: Hero) {
@@ -540,15 +581,12 @@ export class Engine {
     h.ai.targetId = null;
   }
 
-  private handleHumanControl(h: Hero, _dt: number) {
-    const inp = this.input;
+  private handleHumanControl(h: Hero, buf: CommandBuffer) {
+    if (buf.recall) this.startRecall(h);
 
-    if (inp.consumePressed("B")) this.startRecall(h);
-
-    const click = inp.consumeClick();
-    if (click) {
-      const world = this.screenToWorld(click);
+    if (buf.moveTo) {
       // clicking an enemy = attack it; clicking ground = move
+      const world = buf.moveTo;
       const target = this.nearestEnemy(world, h.team, 40);
       if (target) {
         h.attackTargetId = target.id;
@@ -563,7 +601,7 @@ export class Engine {
       h.recallTimer = 0;
     }
 
-    if (inp.consumePressed("A")) {
+    if (buf.attack) {
       const t = this.nearestEnemy(h.pos, h.team, h.attackRange + 220);
       if (t) {
         h.attackTargetId = t.id;
@@ -572,18 +610,9 @@ export class Engine {
       }
     }
 
-    const aim = this.humanAim(h);
-    if (inp.consumePressed("Q")) this.castSkill(h, "q", aim);
-    if (inp.consumePressed("W")) this.castSkill(h, "w", aim);
-  }
-
-  private humanAim(h: Hero): Vec | null {
-    const m = this.input.mouseScreen;
-    if (m) {
-      const w = this.screenToWorld(m);
-      if (dist(w, h.pos) > 10) return w;
-    }
-    return null;
+    if (buf.q) this.castSkill(h, "q", buf.q.aim);
+    if (buf.w) this.castSkill(h, "w", buf.w.aim);
+    buf.clearOneShot();
   }
 
   private handleAutoAttack(h: Hero) {
@@ -608,28 +637,20 @@ export class Engine {
     }
   }
 
-  private applyMovement(h: Hero, dt: number, isActiveHuman: boolean) {
+  private applyMovement(h: Hero, dt: number, buf: CommandBuffer | null) {
     const speed = this.moveSpeedOf(h);
     if (speed <= 0) return;
 
     let moved = false;
-    if (isActiveHuman) {
-      const joy = this.input.joy.active
-        ? this.input.joy
-        : (() => {
-            const k = this.input.keyboardDir();
-            return k ? { ...k, active: true } : null;
-          })();
-      if (joy && joy.active) {
-        const d = norm({ x: joy.x, y: joy.y });
-        if (d.x !== 0 || d.y !== 0) {
-          h.pos = add(h.pos, scale(d, speed * dt));
-          h.facing = d;
-          h.moveTarget = null;
-          h.attackTargetId = null;
-          h.recallTimer = 0;
-          moved = true;
-        }
+    if (buf && buf.joy.active) {
+      const d = norm({ x: buf.joy.x, y: buf.joy.y });
+      if (d.x !== 0 || d.y !== 0) {
+        h.pos = add(h.pos, scale(d, speed * dt));
+        h.facing = d;
+        h.moveTarget = null;
+        h.attackTargetId = null;
+        h.recallTimer = 0;
+        moved = true;
       }
     }
 
@@ -862,8 +883,8 @@ export class Engine {
 
   // ---------------------------------------------------------------- HUD
 
-  hudData(): HudData {
-    const h = this.activeHero();
+  hudData(slot: number | null = this.cameraSlot): HudData {
+    const h = slot !== null ? this.heroBySlot(slot) : null;
     const def = h ? this.charDef(h) : null;
     return {
       hero: h && def

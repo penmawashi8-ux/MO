@@ -1,10 +1,13 @@
-import type { Engine } from "./engine";
 import { BASE_POS, BUSHES, LANE_HALF_WIDTH, LANE_Y, WALLS, WORLD } from "./map";
-import type { Hero, Unit, Vec } from "./types";
+import type { Hero, RenderView, StatusType, Unit, Vec } from "./types";
+
+function hasStatus(h: Hero, type: StatusType): boolean {
+  return h.statuses.some((s) => s.type === type);
+}
 
 const TEAM_COLOR = { blue: "#42a5f5", red: "#ef5350", neutral: "#bdbdbd" } as const;
 
-export function render(ctx: CanvasRenderingContext2D, e: Engine) {
+export function render(ctx: CanvasRenderingContext2D, e: RenderView) {
   const { w, h } = e.viewport;
   const cam = e.camera;
 
@@ -27,7 +30,7 @@ export function render(ctx: CanvasRenderingContext2D, e: Engine) {
   drawMinimap(ctx, e);
 }
 
-function drawMap(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawMap(ctx: CanvasRenderingContext2D, e: RenderView) {
   // ground
   ctx.fillStyle = "#13241a";
   ctx.fillRect(0, 0, WORLD.w, WORLD.h);
@@ -95,7 +98,7 @@ function drawMap(ctx: CanvasRenderingContext2D, e: Engine) {
   ctx.strokeRect(0, 0, WORLD.w, WORLD.h);
 }
 
-function drawUnits(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawUnits(ctx: CanvasRenderingContext2D, e: RenderView) {
   const active = e.activeHero();
   // draw order: structures, jungle, minions, heroes
   const order = (u: Unit) =>
@@ -109,7 +112,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, e: Engine) {
         drawBase(ctx, u);
         break;
       case "tower":
-        drawTower(ctx, e, u);
+        drawTower(ctx, u);
         break;
       case "jungle":
         drawCircleUnit(ctx, u, "#8d6e63", "#5d4037");
@@ -120,7 +123,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, e: Engine) {
         drawHpBar(ctx, u, 26);
         break;
       case "hero":
-        drawHero(ctx, e, u, active?.id === u.id);
+        drawHero(ctx, u, active?.id === u.id);
         break;
     }
   }
@@ -159,7 +162,7 @@ function drawBase(ctx: CanvasRenderingContext2D, u: Unit) {
   drawHpBar(ctx, u, 110);
 }
 
-function drawTower(ctx: CanvasRenderingContext2D, e: Engine, u: Unit) {
+function drawTower(ctx: CanvasRenderingContext2D, u: Unit) {
   const c = TEAM_COLOR[u.team];
   ctx.save();
   ctx.translate(u.pos.x, u.pos.y);
@@ -189,7 +192,7 @@ function drawCircleUnit(ctx: CanvasRenderingContext2D, u: Unit, fill: string, st
   ctx.stroke();
 }
 
-function drawHero(ctx: CanvasRenderingContext2D, e: Engine, h: Hero, isActive: boolean) {
+function drawHero(ctx: CanvasRenderingContext2D, h: Hero, isActive: boolean) {
   const { x, y } = h.pos;
   const teamC = TEAM_COLOR[h.team];
 
@@ -232,7 +235,7 @@ function drawHero(ctx: CanvasRenderingContext2D, e: Engine, h: Hero, isActive: b
   ctx.stroke();
 
   // shield bubble
-  if (e.hasStatus(h, "shield")) {
+  if (hasStatus(h, "shield")) {
     ctx.strokeStyle = "rgba(165,214,167,0.9)";
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -242,9 +245,9 @@ function drawHero(ctx: CanvasRenderingContext2D, e: Engine, h: Hero, isActive: b
 
   // status markers
   let badge = "";
-  if (e.hasStatus(h, "stun")) badge = "💫";
-  else if (e.hasStatus(h, "root")) badge = "🌿";
-  else if (e.hasStatus(h, "poison")) badge = "☠";
+  if (hasStatus(h, "stun")) badge = "💫";
+  else if (hasStatus(h, "root")) badge = "🌿";
+  else if (hasStatus(h, "poison")) badge = "☠";
   if (badge) {
     ctx.font = "18px sans-serif";
     ctx.textAlign = "center";
@@ -280,7 +283,7 @@ function drawHpBar(ctx: CanvasRenderingContext2D, u: Unit, width: number) {
   ctx.fillRect(x, y, width * Math.max(0, u.hp / u.maxHp), 5);
 }
 
-function drawProjectiles(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawProjectiles(ctx: CanvasRenderingContext2D, e: RenderView) {
   for (const p of e.projectiles) {
     ctx.save();
     ctx.shadowColor = p.color;
@@ -293,7 +296,7 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, e: Engine) {
   }
 }
 
-function drawEffects(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawEffects(ctx: CanvasRenderingContext2D, e: RenderView) {
   for (const ef of e.effects) {
     const frac = ef.duration / ef.maxDuration;
     ctx.save();
@@ -342,7 +345,7 @@ function drawEffects(ctx: CanvasRenderingContext2D, e: Engine) {
   }
 }
 
-function drawFloats(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawFloats(ctx: CanvasRenderingContext2D, e: RenderView) {
   ctx.textAlign = "center";
   for (const f of e.floats) {
     ctx.globalAlpha = Math.min(1, f.life * 2);
@@ -356,7 +359,7 @@ function drawFloats(ctx: CanvasRenderingContext2D, e: Engine) {
   ctx.globalAlpha = 1;
 }
 
-function drawMinimap(ctx: CanvasRenderingContext2D, e: Engine) {
+function drawMinimap(ctx: CanvasRenderingContext2D, e: RenderView) {
   const mw = Math.min(190, e.viewport.w * 0.22);
   const mh = mw * (WORLD.h / WORLD.w);
   const mx = e.viewport.w - mw - 10;

@@ -1,28 +1,30 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Engine } from "@/lib/game/engine";
 import type { InputManager } from "@/lib/game/input";
-import type { HostNet } from "@/lib/game/net";
+import type { GuestNet } from "@/lib/game/net";
 import { render } from "@/lib/game/renderer";
-import { buildSnapshot } from "@/lib/game/snapshot";
-import type { GameConfig, GameResult, HudData } from "@/lib/game/types";
+import { RemoteView } from "@/lib/game/snapshot";
+import type { GameResult, HudData } from "@/lib/game/types";
 
 interface Props {
-  config: GameConfig;
+  net: GuestNet;
+  slot: number;
   input: InputManager;
   onHud: (hud: HudData) => void;
   onEnd: (result: GameResult) => void;
-  /** present when hosting an online room: broadcast state, apply guest input */
-  net?: HostNet | null;
+  onDisconnect: () => void;
 }
 
-export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) {
+/** Guest-side game screen: renders snapshots, sends input to the host. */
+export default function RemoteGameCanvas({ net, slot, input, onHud, onEnd, onDisconnect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onHudRef = useRef(onHud);
   const onEndRef = useRef(onEnd);
+  const onDisconnectRef = useRef(onDisconnect);
   onHudRef.current = onHud;
   onEndRef.current = onEnd;
+  onDisconnectRef.current = onDisconnect;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,15 +32,20 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const engine = new Engine(config);
+    const view = new RemoteView(slot);
     input.attach(canvas);
 
-    if (net) {
-      net.onCommand = (slot, c) => engine.pushCommand(slot, c);
-      net.onGuestLeft = (slot) => engine.releaseSlot(slot);
-    }
+    let ended = false;
+    net.onSnap = (s) => view.setSnapshot(s);
+    net.onEnd = (r) => {
+      if (ended) return;
+      ended = true;
+      setTimeout(() => onEndRef.current(r), 1800);
+    };
+    net.onClose = () => {
+      if (!ended) onDisconnectRef.current();
+    };
 
-    // best-effort landscape lock (requires fullscreen on some browsers)
     try {
       const orientation = screen.orientation as ScreenOrientation & {
         lock?: (o: string) => Promise<void>;
@@ -56,7 +63,7 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
       canvas.height = h * dpr;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-      engine.viewport = { w, h };
+      view.viewport = { w, h };
     };
     resize();
     window.addEventListener("resize", resize);
@@ -65,34 +72,38 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
     let raf = 0;
     let last = performance.now();
     let hudTimer = 0;
-    let snapTimer = 0;
-    let ended = false;
+    let joySendTimer = 0;
+    let lastJoy = { x: 0, y: 0, active: false };
 
-    const feedLocalInput = () => {
-      const slot = engine.cameraSlot;
-      if (slot === null) {
-        input.endFrame();
-        return;
-      }
-      const buf = engine.ensureBuffer(slot);
+    const sendInput = (dt: number) => {
       const kb = input.keyboardDir();
       const joy = input.joy.active
         ? input.joy
         : kb
           ? { x: kb.x, y: kb.y, active: true }
           : { x: 0, y: 0, active: false };
-      buf.push({ k: "joy", ...joy });
+
+      joySendTimer -= dt;
+      const changed =
+        joy.active !== lastJoy.active ||
+        Math.abs(joy.x - lastJoy.x) > 0.08 ||
+        Math.abs(joy.y - lastJoy.y) > 0.08;
+      if (changed || (joy.active && joySendTimer <= 0)) {
+        net.sendCmd({ k: "joy", x: joy.x, y: joy.y, active: joy.active });
+        lastJoy = { ...joy };
+        joySendTimer = 0.1;
+      }
 
       const click = input.consumeClick();
       if (click) {
-        const w = engine.screenToWorld(click);
-        buf.push({ k: "move", x: w.x, y: w.y });
+        const w = view.screenToWorld(click);
+        net.sendCmd({ k: "move", x: w.x, y: w.y });
       }
-      const aim = input.mouseScreen ? engine.screenToWorld(input.mouseScreen) : null;
-      if (input.consumePressed("A")) buf.push({ k: "attack" });
-      if (input.consumePressed("Q")) buf.push({ k: "skill", slot: "q", aim });
-      if (input.consumePressed("W")) buf.push({ k: "skill", slot: "w", aim });
-      if (input.consumePressed("B")) buf.push({ k: "recall" });
+      const aim = input.mouseScreen ? view.screenToWorld(input.mouseScreen) : null;
+      if (input.consumePressed("A")) net.sendCmd({ k: "attack" });
+      if (input.consumePressed("Q")) net.sendCmd({ k: "skill", slot: "q", aim });
+      if (input.consumePressed("W")) net.sendCmd({ k: "skill", slot: "w", aim });
+      if (input.consumePressed("B")) net.sendCmd({ k: "recall" });
       input.endFrame();
     };
 
@@ -100,30 +111,16 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
 
-      feedLocalInput();
-      engine.update(dt);
+      sendInput(dt);
+      view.update(dt);
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      render(ctx, engine);
+      render(ctx, view);
 
       hudTimer -= dt;
       if (hudTimer <= 0) {
         hudTimer = 0.12;
-        onHudRef.current(engine.hudData());
-      }
-
-      if (net) {
-        snapTimer -= dt;
-        if (snapTimer <= 0) {
-          snapTimer = 1 / 15;
-          net.broadcastSnapshot(buildSnapshot(engine));
-        }
-      }
-
-      if (engine.over && !ended) {
-        ended = true;
-        net?.sendEnd(engine.over);
-        setTimeout(() => onEndRef.current(engine.over!), 1800);
+        onHudRef.current(view.hudData());
       }
       raf = requestAnimationFrame(loop);
     };
@@ -134,13 +131,12 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
       input.detach();
-      if (net) {
-        net.onCommand = null;
-        net.onGuestLeft = null;
-      }
+      net.onSnap = null;
+      net.onEnd = null;
+      net.onClose = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, input, net]);
+  }, [net, slot, input]);
 
   return (
     <canvas
