@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { audio } from "@/lib/game/audio";
 import type { HudData } from "@/lib/game/types";
 
 interface Props {
@@ -13,6 +15,7 @@ function fmtTime(sec: number): string {
 }
 
 export default function HUD({ hud }: Props) {
+  const [muted, setMuted] = useState(() => audio.muted);
   if (!hud) return null;
   const h = hud.hero;
 
@@ -24,6 +27,15 @@ export default function HUD({ hud }: Props) {
         <span className="text-[11px] font-bold leading-none text-slate-300">{fmtTime(hud.time)}</span>
         <span className="text-base font-black leading-none text-red-400">{hud.kills.red}</span>
       </div>
+
+      {/* top right: sound toggle */}
+      <button
+        onClick={() => setMuted(audio.toggleMuted())}
+        className="pointer-events-auto absolute right-2 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-base backdrop-blur-sm active:scale-90"
+        aria-label={muted ? "サウンドをオンにする" : "サウンドをオフにする"}
+      >
+        {muted ? "🔇" : "🔊"}
+      </button>
 
       {/* hot-seat indicator */}
       {hud.activeLabel && hud.swapIn !== null && (

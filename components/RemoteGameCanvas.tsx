@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { audio } from "@/lib/game/audio";
 import type { InputManager } from "@/lib/game/input";
 import type { GuestNet } from "@/lib/game/net";
 import { render } from "@/lib/game/renderer";
@@ -34,14 +35,27 @@ export default function RemoteGameCanvas({ net, slot, input, onHud, onEnd, onDis
 
     const view = new RemoteView(slot);
     input.attach(canvas);
+    audio.startBgm();
 
     let ended = false;
-    net.onSnap = (s) => view.setSnapshot(s);
-    net.onEnd = (r) => {
+    let wasDead = false;
+    const handleEnd = (r: GameResult) => {
       if (ended) return;
       ended = true;
       setTimeout(() => onEndRef.current(r), 1800);
     };
+    net.onSnap = (s) => {
+      view.setSnapshot(s);
+      const me = view.activeHero();
+      for (const ev of s.sfx ?? []) audio.playAt(ev, me?.pos ?? null);
+      if (me) {
+        if (me.dead && !wasDead) audio.play("death");
+        wasDead = me.dead;
+      }
+      // the end result also rides on snapshots in case the end message is lost
+      if (s.end) handleEnd(s.end);
+    };
+    net.onEnd = handleEnd;
     net.onClose = () => {
       if (!ended) onDisconnectRef.current();
     };
@@ -128,6 +142,7 @@ export default function RemoteGameCanvas({ net, slot, input, onHud, onEnd, onDis
 
     return () => {
       cancelAnimationFrame(raf);
+      audio.stopBgm();
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
       input.detach();

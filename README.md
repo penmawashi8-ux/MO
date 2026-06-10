@@ -23,6 +23,9 @@ CPU難易度: 易しい / 普通 / 難しい
 | スキル2 | Wボタン | W |
 | Base帰還 | Bボタン（3秒詠唱、被弾で中断） | B |
 
+### サウンド
+BGMと効果音（攻撃・スキル・キル・タワー破壊・レベルアップ・勝敗ジングルなど）はWebAudioでリアルタイム生成しており、音声ファイル不要です。画面右上の 🔊 ボタンでミュートを切り替えられます（設定は保存されます）。
+
 ### キャラクター（6体）
 
 | 名前 | ロール | Q | W |
@@ -52,8 +55,9 @@ npm run build  # production build
 ヘッドレス検証:
 
 ```bash
-npx tsx scripts/simulate.ts       # CPU同士でフル試合をシミュレート
-npx tsx scripts/test-net-flow.ts  # コマンド適用・スナップショット往復のテスト
+npx tsx scripts/simulate.ts        # CPU同士でフル試合をシミュレート
+npx tsx scripts/test-net-flow.ts   # コマンド適用・スナップショット往復のテスト
+npx tsx scripts/balance-stats.ts   # 多数試合を回してキャラ別勝率/KDAを計測
 ```
 
 ## デプロイ（Vercel）
@@ -73,6 +77,7 @@ app/
 lib/game/
   engine.ts         # ゲームループ・状態管理・戦闘処理（ホスト/オフラインで実行）
   characters.ts     # キャラクター定義・スキルロジック
+  audio.ts          # WebAudioによるプロシージャルBGM・効果音
   ai.ts             # CPUステートマシン（Idle/Patrol/Chase/Attack/Retreat）
   map.ts            # マップ・タワー・ミニオン定数
   input.ts          # キーボード・マウス・タッチ入力

@@ -50,18 +50,18 @@ export const JUNGLE_POS: Vec[] = [
 
 export const FOUNTAIN_RADIUS = 240;
 
-export const BASE_HP = 4200;
-export const TOWER_HP = 1400;
+export const BASE_HP = 3500;
+export const TOWER_HP = 1200;
 export const TOWER_RANGE = 290;
 export const TOWER_DMG = 78;
 export const TOWER_ATK_CD = 1.15;
 
 export const MINION_HP = 160;
-export const MINION_DMG = 13;
+export const MINION_DMG = 16;
 export const MINION_SPEED = 95;
 export const MINION_RANGE = 48;
 export const MINION_AGGRO = 230;
-export const MINION_WAVE_INTERVAL = 22;
+export const MINION_WAVE_INTERVAL = 18;
 export const MINION_WAVE_SIZE = 3;
 
 export const JUNGLE_HP = 320;

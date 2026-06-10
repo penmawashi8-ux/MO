@@ -1,3 +1,4 @@
+import type { SfxEvent, SfxKind } from "./audio";
 import { ALL_CHAR_IDS, CHARACTERS, type CharDef } from "./characters";
 import { CommandBuffer, type NetCommand } from "./commands";
 import { updateAI } from "./ai";
@@ -24,6 +25,8 @@ export class Engine {
   projectiles: Projectile[] = [];
   effects: GroundEffect[] = [];
   floats: FloatText[] = [];
+  /** sound events since the last drain (played locally + sent to guests) */
+  sfx: SfxEvent[] = [];
   time = 0;
   over: GameResult | null = null;
   killScore = { blue: 0, red: 0 };
@@ -238,6 +241,11 @@ export class Engine {
     this.effects.push({ ...e, id: this.nextId++, tick: 0, maxDuration: e.duration });
   }
 
+  addSfx(kind: SfxKind, pos: Vec) {
+    if (this.sfx.length > 48) return;
+    this.sfx.push({ k: kind, x: Math.round(pos.x), y: Math.round(pos.y) });
+  }
+
   addFloat(pos: Vec, text: string, color: string, size = 13) {
     if (this.floats.length > 80) this.floats.shift();
     this.floats.push({ pos: { x: pos.x, y: pos.y - 20 }, text, color, life: 0.9, size });
@@ -263,7 +271,10 @@ export class Engine {
     const before = u.hp;
     u.hp = Math.min(u.maxHp, u.hp + amount);
     const gained = Math.round(u.hp - before);
-    if (gained > 2) this.addFloat(u.pos, `+${gained}`, "#69f0ae");
+    if (gained > 2) {
+      this.addFloat(u.pos, `+${gained}`, "#69f0ae");
+      this.addSfx("heal", u.pos);
+    }
   }
 
   teleport(h: Hero, dest: Vec) {
@@ -308,8 +319,9 @@ export class Engine {
     const killerHero = source && source.kind === "hero" ? source : null;
 
     if (victim.kind === "hero") {
+      this.addSfx("kill", victim.pos);
       victim.deaths++;
-      victim.respawnTimer = 4 + victim.level * 2;
+      victim.respawnTimer = 5 + victim.level * 2.5;
       victim.statuses = [];
       victim.moveTarget = null;
       victim.attackTargetId = null;
@@ -345,6 +357,7 @@ export class Engine {
         if (!a.dead && a !== killerHero) this.addExp(a, 45);
       }
       this.addFloat(victim.pos, "タワー破壊！", "#ffd740", 18);
+      this.addSfx("tower", victim.pos);
     } else if (victim.kind === "base") {
       this.finish(enemyTeam(victim.team) as "blue" | "red");
     }
@@ -371,6 +384,7 @@ export class Engine {
       h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.3);
       h.mp = Math.min(h.maxMp, h.mp + 40);
       this.addFloat(h.pos, `LEVEL ${h.level}!`, "#ffeb3b", 17);
+      if (h.humanSlot !== null) this.addSfx("levelup", h.pos);
     }
     if (h.level >= MAX_LEVEL) h.exp = 0;
   }
@@ -386,6 +400,7 @@ export class Engine {
     const cd = slot === "q" ? h.qCd : h.wCd;
     if (cd > 0 || h.mp < skill.cost) return false;
     if (!skill.cast(this, h, aim)) return false;
+    this.addSfx("skill", h.pos);
     h.mp -= skill.cost;
     if (slot === "q") h.qCd = skill.cd;
     else h.wCd = skill.cd;
@@ -417,6 +432,7 @@ export class Engine {
     }
     h.attackCd = h.attackCdMax;
     h.recallTimer = 0;
+    this.addSfx("attack", h.pos);
   }
 
   moveSpeedOf(h: Hero): number {
@@ -562,6 +578,7 @@ export class Engine {
       if (h.recallTimer <= 0) {
         this.teleport(h, { ...BASE_POS[h.team as "blue" | "red"] });
         this.addFloat(h.pos, "帰還", "#80deea", 15);
+        this.addSfx("recall", h.pos);
       }
       return; // stand still while channeling
     }

@@ -50,18 +50,18 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "炎の魔法使い",
     color: "#ff6d3a",
     desc: "遠距離から炎の魔法で焼き尽くすDPS",
-    hp: 520, hpG: 70, mp: 320, mpG: 50,
-    ad: 52, adG: 11, range: 330, atkCd: 1.0, speed: 175, radius: 22,
+    hp: 540, hpG: 74, mp: 320, mpG: 50,
+    ad: 52, adG: 11, range: 345, atkCd: 1.0, speed: 178, radius: 22,
     q: {
       name: "ファイアボール",
       desc: "直線に高ダメージの火球を放つ",
-      cost: 35, cd: 5.5,
+      cost: 35, cd: 5,
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         e.spawnProjectile({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
-          vel: scale(d, 540), speed: 540, radius: 11,
-          dmg: 85 + 26 * (h.level - 1), range: 640, pierce: false,
+          vel: scale(d, 560), speed: 560, radius: 11,
+          dmg: 80 + 22 * (h.level - 1), range: 660, pierce: false,
           kind: "fireball", color: "#ff5722",
         });
         h.facing = d;
@@ -75,7 +75,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
       cast(e, h) {
         e.addEffect({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
-          radius: 155, duration: 3, dps: 32 + 9 * (h.level - 1),
+          radius: 155, duration: 3, dps: 34 + 9 * (h.level - 1),
           kind: "vortex", color: "#ff7043", followOwner: true,
         });
         return true;
@@ -90,8 +90,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "樹木の守護者",
     color: "#4caf50",
     desc: "前線を支える高耐久タンク",
-    hp: 880, hpG: 120, mp: 240, mpG: 35,
-    ad: 48, adG: 9, range: 85, atkCd: 1.1, speed: 165, radius: 27,
+    hp: 980, hpG: 140, mp: 240, mpG: 35,
+    ad: 54, adG: 11, range: 90, atkCd: 1.0, speed: 172, radius: 27,
     q: {
       name: "根の拘束",
       desc: "最寄りの敵を2秒間拘束する",
@@ -100,7 +100,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
         const t = e.nearestEnemy(aim ?? h.pos, h.team, aim ? 200 : 360, { heroFirst: true })
           ?? e.nearestEnemy(h.pos, h.team, 360, { heroFirst: true });
         if (!t) return false;
-        e.applyDamage(t, 40 + 12 * (h.level - 1), h);
+        e.applyDamage(t, 55 + 16 * (h.level - 1), h);
         if (t.kind === "hero") {
           e.addStatus(t, { type: "root", duration: 2, sourceId: h.id });
         }
@@ -113,10 +113,10 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     },
     w: {
       name: "大地の盾",
-      desc: "2秒間すべてのダメージを無効化",
-      cost: 45, cd: 14,
+      desc: "2.5秒間すべてのダメージを無効化",
+      cost: 45, cd: 13,
       cast(e, h) {
-        e.addStatus(h, { type: "shield", duration: 2 });
+        e.addStatus(h, { type: "shield", duration: 2.5 });
         e.addFloat(h.pos, "SHIELD", "#a5d6a7", 15);
         return true;
       },
@@ -130,8 +130,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "霊体の暗殺者",
     color: "#b388ff",
     desc: "高速移動で奇襲をしかける暗殺者",
-    hp: 560, hpG: 75, mp: 260, mpG: 40,
-    ad: 64, adG: 14, range: 95, atkCd: 0.75, speed: 205, radius: 22,
+    hp: 640, hpG: 90, mp: 260, mpG: 40,
+    ad: 63, adG: 13, range: 100, atkCd: 0.75, speed: 208, radius: 22,
     q: {
       name: "シャドウステップ",
       desc: "指定位置へワープし周囲にダメージ",
@@ -151,7 +151,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
           radius: 36, duration: 0.4, dps: 0, kind: "warp", color: "#b388ff",
         });
         e.teleport(h, dest);
-        const dmg = 65 + 24 * (h.level - 1);
+        const dmg = 70 + 24 * (h.level - 1);
         for (const u of e.enemiesNear(dest, h.team, 135)) {
           e.applyDamage(u, dmg, h);
         }
@@ -171,7 +171,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
           ?? e.nearestEnemy(h.pos, h.team, 260, { heroFirst: true });
         if (!t) return false;
         if (t.kind === "hero") {
-          e.addStatus(t, { type: "poison", duration: 5, power: 15 + 6 * (h.level - 1), sourceId: h.id });
+          e.addStatus(t, { type: "poison", duration: 5, power: 18 + 7 * (h.level - 1), sourceId: h.id });
           e.addFloat(t.pos, "毒", "#9ccc65", 14);
         } else {
           e.applyDamage(t, 55 + 15 * (h.level - 1), h);
@@ -188,19 +188,19 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "機械弓兵",
     color: "#ffd54f",
     desc: "長射程の機械弓で敵を狙撃するアタッカー",
-    hp: 540, hpG: 72, mp: 280, mpG: 42,
-    ad: 60, adG: 13, range: 420, atkCd: 0.9, speed: 180, radius: 22,
+    hp: 480, hpG: 62, mp: 280, mpG: 42,
+    ad: 44, adG: 9, range: 355, atkCd: 1.0, speed: 172, radius: 22,
     q: {
       name: "炸裂矢",
       desc: "着弾点で爆発する矢を放つ",
-      cost: 30, cd: 6,
+      cost: 30, cd: 7,
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         e.spawnProjectile({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
           vel: scale(d, 500), speed: 500, radius: 9,
-          dmg: 70 + 20 * (h.level - 1), range: 560, pierce: false,
-          kind: "explosive", color: "#ffb300", aoe: 125,
+          dmg: 60 + 16 * (h.level - 1), range: 540, pierce: false,
+          kind: "explosive", color: "#ffb300", aoe: 110,
         });
         h.facing = d;
         return true;
@@ -209,13 +209,13 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     w: {
       name: "スナイプ",
       desc: "超長射程の貫通弾を発射",
-      cost: 45, cd: 11,
+      cost: 45, cd: 12,
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         e.spawnProjectile({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
           vel: scale(d, 950), speed: 950, radius: 8,
-          dmg: 110 + 30 * (h.level - 1), range: 1300, pierce: true,
+          dmg: 80 + 20 * (h.level - 1), range: 1200, pierce: true,
           kind: "snipe", color: "#fff176",
         });
         h.facing = d;
@@ -231,8 +231,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "光の治癒師",
     color: "#80deea",
     desc: "回復とバフで味方を支えるサポート",
-    hp: 580, hpG: 78, mp: 360, mpG: 55,
-    ad: 42, adG: 8, range: 310, atkCd: 1.05, speed: 175, radius: 22,
+    hp: 620, hpG: 84, mp: 360, mpG: 55,
+    ad: 46, adG: 9, range: 320, atkCd: 1.0, speed: 178, radius: 22,
     q: {
       name: "ヒールビーム",
       desc: "最も傷ついた近くの味方を回復",
@@ -250,7 +250,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
           }
         }
         if (!best) return false;
-        const amount = 70 + 26 * (h.level - 1);
+        const amount = 75 + 26 * (h.level - 1);
         e.heal(best, amount);
         e.addEffect({
           team: h.team, ownerId: h.id, pos: { ...best.pos },
@@ -266,8 +266,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
       cast(e, h) {
         for (const a of e.heroesOf(h.team)) {
           if (a.dead) continue;
-          e.addStatus(a, { type: "haste", duration: 4, power: 1.3 });
-          e.addStatus(a, { type: "might", duration: 4, power: 1.3 });
+          e.addStatus(a, { type: "haste", duration: 4, power: 1.25 });
+          e.addStatus(a, { type: "might", duration: 4, power: 1.25 });
           e.addFloat(a.pos, "加護", "#fff59d", 14);
         }
         return true;
@@ -282,8 +282,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "岩石の戦士",
     color: "#a1887f",
     desc: "攻守のバランスに優れた戦士",
-    hp: 720, hpG: 100, mp: 250, mpG: 38,
-    ad: 56, adG: 12, range: 95, atkCd: 0.95, speed: 180, radius: 25,
+    hp: 780, hpG: 112, mp: 250, mpG: 38,
+    ad: 58, adG: 12, range: 95, atkCd: 0.92, speed: 182, radius: 25,
     q: {
       name: "ロックスマッシュ",
       desc: "前方を強打しスタンさせる",
@@ -291,14 +291,14 @@ export const CHARACTERS: Record<CharId, CharDef> = {
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         h.facing = d;
-        const dmg = 65 + 20 * (h.level - 1);
+        const dmg = 75 + 24 * (h.level - 1);
         let hit = false;
         for (const u of e.enemiesNear(h.pos, h.team, 200)) {
           const to = norm(sub(u.pos, h.pos));
           if (dot(to, d) < 0.45) continue;
           e.applyDamage(u, dmg, h);
           if (u.kind === "hero") {
-            e.addStatus(u, { type: "stun", duration: 1, sourceId: h.id });
+            e.addStatus(u, { type: "stun", duration: 1.2, sourceId: h.id });
           }
           hit = true;
         }
@@ -312,7 +312,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     w: {
       name: "チャージ",
       desc: "直線に突撃し敵を吹き飛ばす",
-      cost: 40, cd: 10,
+      cost: 40, cd: 9,
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         h.facing = d;

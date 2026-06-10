@@ -1,9 +1,10 @@
+import type { SfxEvent } from "./audio";
 import { CHARACTERS } from "./characters";
 import type { Engine } from "./engine";
 import { WORLD } from "./map";
 import type {
-  CharId, FloatText, GroundEffect, Hero, HudData, Projectile, RenderView,
-  StatusType, Team, Unit, Vec,
+  CharId, FloatText, GameResult, GroundEffect, Hero, HudData, Projectile,
+  RenderView, StatusType, Team, Unit, Vec,
 } from "./types";
 import { clamp } from "./utils";
 
@@ -80,9 +81,13 @@ export interface Snapshot {
   projs: SnapProj[];
   effs: SnapEff[];
   floats: SnapFloat[];
+  /** sound events since the previous snapshot */
+  sfx: SfxEvent[];
+  /** redundant end-of-game result so guests can't miss the single end message */
+  end: GameResult | null;
 }
 
-export function buildSnapshot(e: Engine): Snapshot {
+export function buildSnapshot(e: Engine, sfx: SfxEvent[] = []): Snapshot {
   const heroes: SnapHero[] = [];
   const units: SnapUnit[] = [];
   for (const u of e.units) {
@@ -129,6 +134,8 @@ export function buildSnapshot(e: Engine): Snapshot {
       x: Math.round(f.pos.x), y: Math.round(f.pos.y),
       text: f.text, color: f.color, life: f.life, size: f.size,
     })),
+    sfx,
+    end: e.over,
   };
 }
 

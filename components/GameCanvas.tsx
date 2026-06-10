@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { audio, type SfxEvent } from "@/lib/game/audio";
 import { Engine } from "@/lib/game/engine";
 import type { InputManager } from "@/lib/game/input";
 import type { HostNet } from "@/lib/game/net";
@@ -32,6 +33,7 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
 
     const engine = new Engine(config);
     input.attach(canvas);
+    audio.startBgm();
 
     if (net) {
       net.onCommand = (slot, c) => engine.pushCommand(slot, c);
@@ -67,6 +69,8 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
     let hudTimer = 0;
     let snapTimer = 0;
     let ended = false;
+    let wasDead = false;
+    const pendingSfx: SfxEvent[] = [];
 
     const feedLocalInput = () => {
       const slot = engine.cameraSlot;
@@ -103,6 +107,19 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
       feedLocalInput();
       engine.update(dt);
 
+      // play new sound events near the local hero; queue them for guests
+      const events = engine.sfx.splice(0);
+      if (events.length > 0) {
+        const me = engine.activeHero();
+        for (const ev of events) audio.playAt(ev, me?.pos ?? null);
+        if (net) pendingSfx.push(...events);
+      }
+      const meNow = engine.activeHero();
+      if (meNow) {
+        if (meNow.dead && !wasDead) audio.play("death");
+        wasDead = meNow.dead;
+      }
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       render(ctx, engine);
 
@@ -116,7 +133,7 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
         snapTimer -= dt;
         if (snapTimer <= 0) {
           snapTimer = 1 / 15;
-          net.broadcastSnapshot(buildSnapshot(engine));
+          net.broadcastSnapshot(buildSnapshot(engine, pendingSfx.splice(0)));
         }
       }
 
@@ -131,6 +148,7 @@ export default function GameCanvas({ config, input, onHud, onEnd, net }: Props) 
 
     return () => {
       cancelAnimationFrame(raf);
+      audio.stopBgm();
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
       input.detach();
