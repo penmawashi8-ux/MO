@@ -422,6 +422,8 @@ export class Engine {
     const dmg = h.attackDamage * (might?.power ?? 1);
     if (h.attackRange <= 120) {
       this.applyDamage(target, dmg, h);
+      // melee sustain: basic attacks restore a chunk of the damage dealt
+      h.hp = Math.min(h.maxHp, h.hp + dmg * 0.12);
     } else {
       this.spawnProjectile({
         team: h.team, ownerId: h.id, pos: { ...h.pos },
@@ -556,10 +558,10 @@ export class Engine {
     h.statuses = h.statuses.filter((s) => s.duration > 0);
     if (h.dead) return; // poison may have killed
 
-    // regen (boosted at own fountain)
+    // regen (fast %-based recovery at own fountain so recalls are worth it)
     const atFountain = dist(h.pos, BASE_POS[h.team as "blue" | "red"]) < FOUNTAIN_RADIUS;
-    h.hp = Math.min(h.maxHp, h.hp + (atFountain ? 50 : 1.6) * dt);
-    h.mp = Math.min(h.maxMp, h.mp + (atFountain ? 30 : 4.5) * dt);
+    h.hp = Math.min(h.maxHp, h.hp + (atFountain ? h.maxHp * 0.12 + 30 : 1.6) * dt);
+    h.mp = Math.min(h.maxMp, h.mp + (atFountain ? h.maxMp * 0.15 + 25 : 4.5) * dt);
 
     h.attackCd = Math.max(0, h.attackCd - dt);
     h.qCd = Math.max(0, h.qCd - dt);

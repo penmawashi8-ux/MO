@@ -50,8 +50,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "炎の魔法使い",
     color: "#ff6d3a",
     desc: "遠距離から炎の魔法で焼き尽くすDPS",
-    hp: 540, hpG: 74, mp: 320, mpG: 50,
-    ad: 52, adG: 11, range: 345, atkCd: 1.0, speed: 178, radius: 22,
+    hp: 565, hpG: 78, mp: 320, mpG: 50,
+    ad: 54, adG: 11, range: 350, atkCd: 0.98, speed: 180, radius: 22,
     q: {
       name: "ファイアボール",
       desc: "直線に高ダメージの火球を放つ",
@@ -61,7 +61,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
         e.spawnProjectile({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
           vel: scale(d, 560), speed: 560, radius: 11,
-          dmg: 80 + 22 * (h.level - 1), range: 660, pierce: false,
+          dmg: 90 + 26 * (h.level - 1), range: 660, pierce: false,
           kind: "fireball", color: "#ff5722",
         });
         h.facing = d;
@@ -75,7 +75,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
       cast(e, h) {
         e.addEffect({
           team: h.team, ownerId: h.id, pos: { ...h.pos },
-          radius: 155, duration: 3, dps: 34 + 9 * (h.level - 1),
+          radius: 160, duration: 3, dps: 38 + 10 * (h.level - 1),
           kind: "vortex", color: "#ff7043", followOwner: true,
         });
         return true;
@@ -90,8 +90,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "樹木の守護者",
     color: "#4caf50",
     desc: "前線を支える高耐久タンク",
-    hp: 980, hpG: 140, mp: 240, mpG: 35,
-    ad: 54, adG: 11, range: 90, atkCd: 1.0, speed: 172, radius: 27,
+    hp: 1010, hpG: 145, mp: 240, mpG: 35,
+    ad: 56, adG: 11, range: 95, atkCd: 0.98, speed: 174, radius: 27,
     q: {
       name: "根の拘束",
       desc: "最寄りの敵を2秒間拘束する",
@@ -130,8 +130,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "霊体の暗殺者",
     color: "#b388ff",
     desc: "高速移動で奇襲をしかける暗殺者",
-    hp: 640, hpG: 90, mp: 260, mpG: 40,
-    ad: 63, adG: 13, range: 100, atkCd: 0.75, speed: 208, radius: 22,
+    hp: 620, hpG: 82, mp: 260, mpG: 40,
+    ad: 58, adG: 12, range: 100, atkCd: 0.78, speed: 206, radius: 22,
     q: {
       name: "シャドウステップ",
       desc: "指定位置へワープし周囲にダメージ",
@@ -188,8 +188,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "機械弓兵",
     color: "#ffd54f",
     desc: "長射程の機械弓で敵を狙撃するアタッカー",
-    hp: 480, hpG: 62, mp: 280, mpG: 42,
-    ad: 44, adG: 9, range: 355, atkCd: 1.0, speed: 172, radius: 22,
+    hp: 510, hpG: 66, mp: 280, mpG: 42,
+    ad: 48, adG: 10, range: 370, atkCd: 0.95, speed: 174, radius: 22,
     q: {
       name: "炸裂矢",
       desc: "着弾点で爆発する矢を放つ",
@@ -209,7 +209,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     w: {
       name: "スナイプ",
       desc: "超長射程の貫通弾を発射",
-      cost: 45, cd: 12,
+      cost: 45, cd: 11,
       cast(e, h, aim) {
         const d = aimDir(e, h, aim);
         e.spawnProjectile({
@@ -231,8 +231,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     roleJp: "光の治癒師",
     color: "#80deea",
     desc: "回復とバフで味方を支えるサポート",
-    hp: 620, hpG: 84, mp: 360, mpG: 55,
-    ad: 46, adG: 9, range: 320, atkCd: 1.0, speed: 178, radius: 22,
+    hp: 650, hpG: 88, mp: 360, mpG: 55,
+    ad: 48, adG: 10, range: 325, atkCd: 1.0, speed: 180, radius: 22,
     q: {
       name: "ヒールビーム",
       desc: "最も傷ついた近くの味方を回復",
@@ -250,7 +250,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
           }
         }
         if (!best) return false;
-        const amount = 75 + 26 * (h.level - 1);
+        const amount = 82 + 28 * (h.level - 1);
         e.heal(best, amount);
         e.addEffect({
           team: h.team, ownerId: h.id, pos: { ...best.pos },
@@ -283,7 +283,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     color: "#a1887f",
     desc: "攻守のバランスに優れた戦士",
     hp: 780, hpG: 112, mp: 250, mpG: 38,
-    ad: 58, adG: 12, range: 95, atkCd: 0.92, speed: 182, radius: 25,
+    ad: 58, adG: 12, range: 100, atkCd: 0.92, speed: 184, radius: 25,
     q: {
       name: "ロックスマッシュ",
       desc: "前方を強打しスタンさせる",
