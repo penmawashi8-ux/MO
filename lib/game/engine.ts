@@ -424,6 +424,13 @@ export class Engine {
       this.applyDamage(target, dmg, h);
       // melee sustain: basic attacks restore a chunk of the damage dealt
       h.hp = Math.min(h.maxHp, h.hp + dmg * 0.12);
+      // visible swing arc so melee attacks read clearly
+      this.addEffect({
+        team: h.team, ownerId: h.id, pos: { ...h.pos },
+        radius: Math.min(h.attackRange + target.radius, 130), duration: 0.22, dps: 0,
+        kind: "slash", color: "#ffffff",
+        rot: Math.atan2(dirToTarget.y, dirToTarget.x),
+      });
     } else {
       this.spawnProjectile({
         team: h.team, ownerId: h.id, pos: { ...h.pos },
@@ -621,7 +628,8 @@ export class Engine {
     }
 
     if (buf.attack) {
-      const t = this.nearestEnemy(h.pos, h.team, h.attackRange + 220);
+      // lock-on: prefer enemy heroes, chase the target until it dies
+      const t = this.nearestEnemy(h.pos, h.team, h.attackRange + 220, { heroFirst: true });
       if (t) {
         h.attackTargetId = t.id;
         h.moveTarget = null;

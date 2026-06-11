@@ -109,6 +109,7 @@ function drawMap(ctx: CanvasRenderingContext2D) {
 
 function drawUnits(ctx: CanvasRenderingContext2D, e: RenderView, t: number, ui: number) {
   const active = e.activeHero();
+  const lockId = active && !active.dead ? active.attackTargetId : null;
   // draw order: structures, jungle, minions, heroes
   const order = (u: Unit) =>
     u.kind === "base" || u.kind === "tower" ? 0 : u.kind === "jungle" ? 1 : u.kind === "minion" ? 2 : 3;
@@ -116,6 +117,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, e: RenderView, t: number, ui: 
 
   for (const u of units) {
     if (u.dead && u.kind !== "base") continue;
+    if (u.id === lockId && !u.dead) drawTargetMarker(ctx, u, t);
     switch (u.kind) {
       case "base":
         drawBase(ctx, u, ui);
@@ -136,6 +138,35 @@ function drawUnits(ctx: CanvasRenderingContext2D, e: RenderView, t: number, ui: 
         break;
     }
   }
+}
+
+/** rotating reticle over the active player's locked attack target (A button) */
+function drawTargetMarker(ctx: CanvasRenderingContext2D, u: Unit, t: number) {
+  const r = u.radius + 11;
+  ctx.save();
+  ctx.translate(u.pos.x, u.pos.y);
+  ctx.rotate(t * 2.5);
+  ctx.strokeStyle = "#ff5252";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([9, 7]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // four inward chevrons
+  ctx.fillStyle = "#ff5252";
+  for (let i = 0; i < 4; i++) {
+    ctx.save();
+    ctx.rotate((i / 4) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.moveTo(r + 8, -5);
+    ctx.lineTo(r - 1, 0);
+    ctx.lineTo(r + 8, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 function drawBase(ctx: CanvasRenderingContext2D, u: Unit, ui: number) {
@@ -370,7 +401,13 @@ function drawHero(
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  ctx.translate(0, bob);
+  // melee lunge: step into the swing right after attacking
+  let lunge = 0;
+  if (h.attackRange <= 120 && h.attackCdMax > 0 && h.attackCd > 0) {
+    const since = 1 - h.attackCd / h.attackCdMax; // 0 = just attacked
+    if (since < 0.35) lunge = Math.sin((since / 0.35) * Math.PI) * r * 0.5;
+  }
+  ctx.translate(h.facing.x * lunge, bob + h.facing.y * lunge);
   drawCharacterArt(ctx, h, t);
   ctx.restore();
 
@@ -908,6 +945,25 @@ function drawEffects(ctx: CanvasRenderingContext2D, e: RenderView) {
       ctx.textAlign = "center";
       ctx.fillStyle = ef.color;
       ctx.fillText("✚", ef.pos.x, ef.pos.y - ef.radius - 6);
+    } else if (ef.kind === "slash") {
+      // melee swing: arc sweeping across the facing direction
+      const prog = 1 - frac; // 0 → 1 over the effect's life
+      const rot = ef.rot ?? 0;
+      const sweep = 2.0;
+      const a0 = rot - sweep / 2;
+      const a1 = a0 + sweep * Math.min(1, prog * 1.7);
+      ctx.lineCap = "round";
+      ctx.globalAlpha = Math.min(1, frac * 1.6);
+      ctx.strokeStyle = ef.color;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.arc(ef.pos.x, ef.pos.y, ef.radius * (0.75 + prog * 0.25), a0, a1);
+      ctx.stroke();
+      ctx.globalAlpha = Math.min(1, frac) * 0.5;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(ef.pos.x, ef.pos.y, ef.radius * (0.5 + prog * 0.2), a0, a1);
+      ctx.stroke();
     } else if (ef.kind === "warp") {
       ctx.globalAlpha = frac * 0.8;
       ctx.strokeStyle = ef.color;

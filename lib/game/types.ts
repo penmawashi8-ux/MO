@@ -129,7 +129,7 @@ export interface Projectile {
   hitIds: number[];
 }
 
-export type EffectKind = "vortex" | "heal" | "blast" | "warp";
+export type EffectKind = "vortex" | "heal" | "blast" | "warp" | "slash";
 
 export interface GroundEffect {
   id: number;
@@ -143,6 +143,8 @@ export interface GroundEffect {
   kind: EffectKind;
   color: string;
   followOwner?: boolean;
+  /** orientation in radians (slash arcs) */
+  rot?: number;
   tick: number;
 }
 

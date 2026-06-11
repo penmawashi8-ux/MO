@@ -32,6 +32,8 @@ export interface SnapHero {
   lb: string | null;
   qc: number; // Q cooldown remaining
   wc: number; // W cooldown remaining
+  ac: number; // basic attack cooldown remaining (drives melee lunge anim)
+  tg: number | null; // locked attack target id
 }
 
 export interface SnapUnit {
@@ -61,6 +63,7 @@ export interface SnapEff {
   d: number;
   md: number;
   color: string;
+  ro?: number;
 }
 
 export interface SnapFloat {
@@ -106,6 +109,7 @@ export function buildSnapshot(e: Engine, sfx: SfxEvent[] = []): Snapshot {
         st: u.statuses.map((s) => [s.type, Math.round(s.duration * 10) / 10]),
         sl: u.humanSlot, lb: u.humanLabel,
         qc: Math.round(u.qCd * 10) / 10, wc: Math.round(u.wCd * 10) / 10,
+        ac: Math.round(u.attackCd * 100) / 100, tg: u.attackTargetId,
       });
     } else {
       if (u.dead && u.kind !== "base") continue;
@@ -129,6 +133,7 @@ export function buildSnapshot(e: Engine, sfx: SfxEvent[] = []): Snapshot {
     effs: e.effects.map((ef) => ({
       kind: ef.kind, x: Math.round(ef.pos.x), y: Math.round(ef.pos.y),
       r: ef.radius, d: ef.duration, md: ef.maxDuration, color: ef.color,
+      ro: ef.rot,
     })),
     floats: e.floats.map((f) => ({
       x: Math.round(f.pos.x), y: Math.round(f.pos.y),
@@ -148,10 +153,10 @@ function makeHero(s: SnapHero): Hero {
     hp: s.hp, maxHp: s.mh, mp: s.mp, maxMp: s.mm,
     level: s.lv, exp: s.xp, dead: s.dd === 1,
     moveSpeed: def.speed, attackDamage: def.ad, attackRange: def.range,
-    attackCdMax: def.atkCd, attackCd: 0, qCd: 0, wCd: 0,
+    attackCdMax: def.atkCd, attackCd: s.ac ?? 0, qCd: 0, wCd: 0,
     statuses: s.st.map(([type, duration]) => ({ type, duration })),
     facing: { x: s.fx, y: s.fy },
-    moveTarget: null, attackTargetId: null,
+    moveTarget: null, attackTargetId: s.tg ?? null,
     controller: s.sl !== null ? "human" : "ai",
     humanSlot: s.sl, humanLabel: s.lb,
     ai: { state: "idle", targetId: null, reactTimer: 0 },
@@ -240,7 +245,7 @@ export class RemoteView implements RenderView {
       id: i, team: "neutral" as Team, ownerId: 0,
       pos: { x: ef.x, y: ef.y }, radius: ef.r,
       duration: ef.d, maxDuration: ef.md, dps: 0,
-      kind: ef.kind, color: ef.color, tick: 0,
+      kind: ef.kind, color: ef.color, rot: ef.ro, tick: 0,
     }));
     this.floats = s.floats.map((f) => ({
       pos: { x: f.x, y: f.y }, text: f.text, color: f.color,
